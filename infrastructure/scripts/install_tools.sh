@@ -52,7 +52,7 @@ services:
     environment:
       - SONAR_JDBC_URL=jdbc:postgresql://${db_endpoint}/sonarqube
       - SONAR_JDBC_USERNAME=$DB_USER
-      - SONAR_JDBC_PASSWORD="$DB_PASS"
+      - SONAR_JDBC_PASSWORD=$DB_PASS
       - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
     volumes:
       - sonarqube_extensions:/opt/sonarqube/extensions
