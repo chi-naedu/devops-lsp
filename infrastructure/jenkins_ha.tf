@@ -4,6 +4,10 @@ resource "aws_launch_template" "jenkins_lt" {
   image_id      = var.ami_id
   instance_type = "t3.large"
   key_name      = var.key_name
+  
+  iam_instance_profile {
+    name = aws_iam_instance_profile.jenkins_profile.name
+  }
 
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
 

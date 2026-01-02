@@ -41,3 +41,35 @@ resource "aws_iam_instance_profile" "tools_profile" {
   name = "linksnap-tools-profile"
   role = aws_iam_role.tools_role.name
 }
+
+# --- Jenkins IAM Role for ECR Access ---
+
+# 1. The Trust Policy (Who can use this role? -> EC2)
+resource "aws_iam_role" "jenkins_role" {
+  name = "jenkins-ecr-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# 2. The Permission Policy (What can they do? -> Read/Write to ECR)
+resource "aws_iam_role_policy_attachment" "jenkins_ecr_policy" {
+  role       = aws_iam_role.jenkins_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+# 3. The Instance Profile (The "Pass" to give to the server)
+resource "aws_iam_instance_profile" "jenkins_profile" {
+  name = "jenkins-instance-profile"
+  role = aws_iam_role.jenkins_role.name
+}

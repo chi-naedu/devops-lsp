@@ -1,15 +1,32 @@
-resource "aws_ecr_repository" "app_repo" {
-  name                 = "linksnap-app"
-  image_tag_mutability = "MUTABLE" # Allows overwriting tags like 'latest'
+# --- Backend Repository (Python API) ---
+resource "aws_ecr_repository" "backend" {
+  name                 = "linksnap-backend"
+  image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
-    scan_on_push = true # Free security scan for vulnerabilities
+    scan_on_push = true
   }
-
-  tags = { Name = "LinkSnap-ECR" }
+  
+  tags = { Name = "LinkSnap-Backend-Repo" }
 }
 
-# Output the URL so we can use it in Jenkins later
-output "ecr_repository_url" {
-  value = aws_ecr_repository.app_repo.repository_url
+# --- Frontend Repository (React/Nginx) ---
+resource "aws_ecr_repository" "frontend" {
+  name                 = "linksnap-frontend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+  
+  tags = { Name = "LinkSnap-Frontend-Repo" }
+}
+
+# --- Outputs (We need both URLs) ---
+output "ecr_backend_url" {
+  value = aws_ecr_repository.backend.repository_url
+}
+
+output "ecr_frontend_url" {
+  value = aws_ecr_repository.frontend.repository_url
 }

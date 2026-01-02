@@ -2,47 +2,39 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node20'  // Uses the tool we just configured
-        // We don't need a specific Python tool; the server's default python3 is sufficient.
+        nodejs 'node20'
     }
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         VENV_HOME = "${WORKSPACE}/venv"
+        // REPLACE THIS with your actual ECR URL from Terraform Output
+        // Example: 123456789.dkr.ecr.eu-west-2.amazonaws.com
+        ECR_REGISTRY = '484336990036.dkr.ecr.eu-west-2.amazonaws.com' 
+        AWS_REGION = 'eu-west-2'
     }
 
     stages {
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
-        stage('Install Backend Deps (Flask)') {
+        stage('Install Backend Deps') {
             steps {
                 dir('backend') {
                     sh '''
-                        echo "--- Setting up Python Virtual Env ---"
                         python3 -m venv ${VENV_HOME}
                         . ${VENV_HOME}/bin/activate
-                        
-                        echo "--- Installing Flask Requirements ---"
                         pip install -r requirements.txt
                     '''
                 }
             }
         }
 
-        stage('Build Frontend (React)') {
+        stage('Build Frontend') {
             steps {
                 dir('frontend') {
-                    sh '''
-                        echo "--- Installing Node Modules ---"
-                        npm install
-                        
-                        echo "--- Building React App ---"
-                        npm run build
-                    '''
+                    sh 'npm install && npm run build'
                 }
             }
         }
@@ -50,7 +42,6 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar-server') {
-                    // We scan the root (.) but exclude the heavy folders
                     sh """
                         ${SCANNER_HOME}/bin/sonar-scanner \
                         -Dsonar.projectKey=linksnap-monorepo \
@@ -62,11 +53,38 @@ pipeline {
                 }
             }
         }
-        stage("Quality Gate") {
+
+        stage('Quality Gate') {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
-                    // This pauses the pipeline until SonarQube sends the webhook back
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                script {
+                    // This logs Docker into AWS ECR so we can push images
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                }
+            }
+        }
+
+        stage('Build & Push Images') {
+            steps {
+                script {
+                    // 1. Build & Push Backend
+                    sh """
+                        docker build -t ${ECR_REGISTRY}/linksnap-backend:latest ./backend
+                        docker push ${ECR_REGISTRY}/linksnap-backend:latest
+                    """
+                    
+                    // 2. Build & Push Frontend
+                    sh """
+                        docker build -t ${ECR_REGISTRY}/linksnap-frontend:latest ./frontend
+                        docker push ${ECR_REGISTRY}/linksnap-frontend:latest
+                    """
                 }
             }
         }
