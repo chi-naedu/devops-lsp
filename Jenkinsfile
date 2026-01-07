@@ -18,12 +18,10 @@ pipeline {
                     mountPath: /kaniko/.docker
               # 2. Container to run Kubectl commands
               - name: kubectl
-                image: bitnami/kubectl:latest
-                # We use explicit shell to sleep forever, ensuring the container stays up
+                # This image is built for CI/CD: runs as root, has sh/bash/helm/kubectl
+                image: dtzar/helm-kubectl:latest
                 command:
-                - /bin/sh
-                - -c
-                - sleep infinity
+                - cat
                 tty: true
               volumes:
                 - name: docker-config
