@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: backend
 spec:
-  type: ClusterIP       # <--- Change this from LoadBalancer to ClusterIP
+  type: ClusterIP      
   selector:
     app: backend
   ports:

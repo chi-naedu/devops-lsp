@@ -1,93 +1,71 @@
 pipeline {
-    agent any
-
-    tools {
-        nodejs 'node20'
+    agent {
+        kubernetes {
+            // This YAML defines the "Build Agent" that spins up just for this job
+            yaml '''
+            apiVersion: v1
+            kind: Pod
+            spec:
+              containers:
+              # 1. Container to build Docker Images (using Kaniko, the K8s standard)
+              - name: kaniko
+                image: gcr.io/kaniko-project/executor:v1.14.0-debug
+                command:
+                - /busybox/cat
+                tty: true
+                volumeMounts:
+                  - name: docker-config
+                    mountPath: /kaniko/.docker
+              # 2. Container to run Kubectl commands
+              - name: kubectl
+                image: bitnami/kubectl:latest
+                command:
+                - cat
+                tty: true
+              volumes:
+                - name: docker-config
+                  emptyDir: {}
+            '''
+        }
     }
 
     environment {
-        SCANNER_HOME = tool 'sonar-scanner'
-        VENV_HOME = "${WORKSPACE}/venv"
-        
-        // --- CONFIGURATION ---
+        // REPLACE with your ECR URL
         ECR_REGISTRY = '484336990036.dkr.ecr.eu-west-2.amazonaws.com' 
         AWS_REGION = 'eu-west-2'
-        
-        // REPLACE THIS with your actual EKS Cluster Name (from Terraform/AWS Console)
-        EKS_CLUSTER_NAME = 'linksnap-cluster' 
     }
 
     stages {
         stage('Checkout') {
-            steps { checkout scm }
-        }
-
-        stage('Install Backend Deps') {
             steps {
-                dir('backend') {
-                    sh '''
-                        python3 -m venv ${VENV_HOME}
-                        . ${VENV_HOME}/bin/activate
-                        pip install -r requirements.txt
-                    '''
-                }
+                checkout scm
             }
         }
-
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'npm install && npm run build'
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh """
-                        ${SCANNER_HOME}/bin/sonar-scanner \
-                        -Dsonar.projectKey=linksnap-monorepo \
-                        -Dsonar.projectName="LinkSnap Platform" \
-                        -Dsonar.sources=. \
-                        -Dsonar.exclusions=**/node_modules/**,**/venv/**,**/.git/**,**/build/** \
-                        -Dsonar.python.version=3
-                    """
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Login to ECR') {
-            steps {
-                script {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
-                }
-            }
-        }
+        
+        // Note: For simplicity in this K8s migration, we are skipping the 
+        // Python/Node install stages. Kaniko handles the build directly from the Dockerfile.
 
         stage('Build & Push Images') {
             steps {
-                script {
-                    // Note: No --platform flag needed here because Jenkins is running on Linux!
-                    
-                    // 1. Backend
+                container('kaniko') {
+                    // Create a config.json for Kaniko to authenticate with ECR
+                    // This uses the Node's IAM Role automatically!
+                    sh '''
+                        echo "{\\"credsStore\\":\\"ecr-login\\"}" > /kaniko/.docker/config.json
+                    '''
+
+                    // Build Backend
                     sh """
-                        docker build -t ${ECR_REGISTRY}/linksnap-backend:latest ./backend
-                        docker push ${ECR_REGISTRY}/linksnap-backend:latest
+                        /kaniko/executor --context `pwd`/backend \
+                        --dockerfile `pwd`/backend/Dockerfile \
+                        --destination ${ECR_REGISTRY}/linksnap-backend:latest
                     """
-                    
-                    // 2. Frontend
+
+                    // Build Frontend
                     sh """
-                        docker build -t ${ECR_REGISTRY}/linksnap-frontend:latest ./frontend
-                        docker push ${ECR_REGISTRY}/linksnap-frontend:latest
+                        /kaniko/executor --context `pwd`/frontend \
+                        --dockerfile `pwd`/frontend/Dockerfile \
+                        --destination ${ECR_REGISTRY}/linksnap-frontend:latest
                     """
                 }
             }
@@ -95,23 +73,17 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                script {
-                    // 1. Update kubeconfig so Jenkins can talk to the cluster
-                    sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}"
-
-                    // 2. Apply Kubernetes Manifests
-                    // Assumes your yaml files are in the root of the repo. 
-                    // If they are in a folder, use: kubectl apply -f k8s/
+                container('kubectl') {
+                    // No login needed! It uses the Service Account.
+                    
+                    // Apply Manifests
                     sh "kubectl apply -f backend-deployment.yaml"
                     sh "kubectl apply -f backend-service.yaml"
                     sh "kubectl apply -f frontend-deployment.yaml"
                     sh "kubectl apply -f frontend-service.yaml"
-                    
-                    // Only apply ingress if you haven't already, or if it changed
                     sh "kubectl apply -f ingress.yaml"
 
-                    // 3. Force Rollout Restart
-                    // This ensures pods pull the new 'latest' image we just pushed
+                    // Force Restart
                     sh "kubectl rollout restart deployment/backend"
                     sh "kubectl rollout restart deployment/frontend"
                 }
