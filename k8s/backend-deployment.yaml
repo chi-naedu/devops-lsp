@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        # Your actual Backend ECR URI
+        image: 484336990036.dkr.ecr.eu-west-2.amazonaws.com/linksnap-backend:latest
+        ports:
+        - containerPort: 5000  # Ensure this matches your backend's listening port (Python/Flask defaults to 5000)
+        
+        env:
+        - name: REDIS_HOST
+          value: "linksnap-db.fraumj.ng.0001.euw2.cache.amazonaws.com" # Paste Terraform output here
+        
+        - name: REDIS_PORT
+          value: "6379"

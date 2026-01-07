@@ -3,7 +3,9 @@ resource "aws_vpc" "main_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "${var.project_name}-VPC" }
+  tags = { 
+    Name = "${var.project_name}-VPC"
+    }
 }
 
 # 2. Internet Gateway
@@ -23,7 +25,11 @@ resource "aws_subnet" "public_subnet_1" {
   cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
   availability_zone       = data.aws_availability_zones.available.names[0]
-  tags = { Name = "${var.project_name}-Public-Subnet-1" }
+  tags = { 
+    Name = "${var.project_name}-Public-Subnet-1" 
+    "kubernetes.io/role/elb" = "1"              # (Tells AWS: "Put Public LBs here")
+    "kubernetes.io/cluster/linksnap-cluster" = "owned"    #(Associates VPC with EKS Cluster)
+    }
 }
 
 resource "aws_subnet" "public_subnet_2" {
@@ -31,7 +37,11 @@ resource "aws_subnet" "public_subnet_2" {
   cidr_block              = "10.0.2.0/24"
   map_public_ip_on_launch = true
   availability_zone       = data.aws_availability_zones.available.names[1]
-  tags = { Name = "${var.project_name}-Public-Subnet-2" }
+  tags = { 
+    Name = "${var.project_name}-Public-Subnet-2"
+    "kubernetes.io/role/elb" = "1"           
+    "kubernetes.io/cluster/linksnap-cluster" = "owned" 
+    }
 }
 
 # 5. Private Subnets (For RDS & Future EKS)
@@ -40,7 +50,11 @@ resource "aws_subnet" "private_subnet_1" {
   cidr_block              = "10.0.3.0/24"
   map_public_ip_on_launch = false # Private!
   availability_zone       = data.aws_availability_zones.available.names[0]
-  tags = { Name = "${var.project_name}-Private-Subnet-1" }
+  tags = { 
+    Name = "${var.project_name}-Private-Subnet-1"
+    "kubernetes.io/role/internal-elb" = "1"               #(Tells AWS: "Put Private LBs here")
+    "kubernetes.io/cluster/linksnap-cluster" = "owned"
+     }
 }
 
 resource "aws_subnet" "private_subnet_2" {
@@ -48,7 +62,11 @@ resource "aws_subnet" "private_subnet_2" {
   cidr_block              = "10.0.4.0/24"
   map_public_ip_on_launch = false # Private!
   availability_zone       = data.aws_availability_zones.available.names[1]
-  tags = { Name = "${var.project_name}-Private-Subnet-2" }
+  tags = { 
+    Name = "${var.project_name}-Private-Subnet-2"
+    "kubernetes.io/role/internal-elb" = "1"    
+    "kubernetes.io/cluster/linksnap-cluster" = "owned"
+     }
 }
 
 # 6. Public Route Table (Has Internet)

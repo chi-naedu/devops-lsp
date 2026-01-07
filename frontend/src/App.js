@@ -6,29 +6,29 @@ function App() {
   const [shortUrl, setShortUrl] = useState('');
   const [error, setError] = useState('');
 
-  // Depending on where this runs, the backend URL changes
-  // For local docker-compose, we usually proxy or point directly
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5001';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setShortUrl('');
 
     try {
-      const response = await fetch(`${BACKEND_URL}/shorten`, {
+      const response = await fetch('/api/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
 
       const data = await response.json();
+      
       if (response.ok) {
-        setShortUrl(`${BACKEND_URL}/${data.short_id}`);
+        // Construct the clickable link using the current browser domain
+        const fullShortUrl = `${window.location.origin}/api/${data.short_id}`;
+        setShortUrl(fullShortUrl);
       } else {
         setError(data.error || 'Something went wrong');
       }
     } catch (err) {
+      console.error(err);
       setError('Failed to connect to backend');
     }
   };
