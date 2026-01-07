@@ -1,6 +1,7 @@
 pipeline {
     agent {
         kubernetes {
+            serviceAccount 'jenkins'
             // This YAML defines the "Build Agent" that spins up just for this job
             yaml '''
             apiVersion: v1
