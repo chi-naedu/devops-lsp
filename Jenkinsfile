@@ -78,12 +78,11 @@ pipeline {
                     // No login needed! It uses the Service Account.
                     
                     // Apply Manifests
-                    sh "kubectl apply -f backend-deployment.yaml"
-                    sh "kubectl apply -f backend-service.yaml"
-                    sh "kubectl apply -f frontend-deployment.yaml"
-                    sh "kubectl apply -f frontend-service.yaml"
-                    sh "kubectl apply -f ingress.yaml"
-
+                    sh "kubectl apply -f k8s/backend-deployment.yaml"
+                    sh "kubectl apply -f k8s/backend-service.yaml"
+                    sh "kubectl apply -f k8s/frontend-deployment.yaml"
+                    sh "kubectl apply -f k8s/frontend-service.yaml"
+                    sh "kubectl apply -f k8s/ingress.yaml"
                     // Force Restart
                     sh "kubectl rollout restart deployment/backend"
                     sh "kubectl rollout restart deployment/frontend"
