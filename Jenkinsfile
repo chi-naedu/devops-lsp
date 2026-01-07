@@ -19,8 +19,11 @@ pipeline {
               # 2. Container to run Kubectl commands
               - name: kubectl
                 image: bitnami/kubectl:latest
+                # We use explicit shell to sleep forever, ensuring the container stays up
                 command:
-                - cat
+                - /bin/sh
+                - -c
+                - sleep infinity
                 tty: true
               volumes:
                 - name: docker-config
