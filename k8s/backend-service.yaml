@@ -2,6 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
+  annotations:
+    # Specific check for the API
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/success-codes: "200"
 spec:
   type: ClusterIP      
   selector:

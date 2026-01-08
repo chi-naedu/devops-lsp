@@ -1,0 +1,61 @@
+# sonarqube-values.yaml
+
+# 1. APPLICATION SETTING: Tell SonarQube it lives at a sub-path
+# This requires a restart to take effect.
+sonarProperties:
+  sonar.web.context: /sonarqube
+
+# 2. FIX: Enable Community Build
+community:
+  enabled: true
+
+# 3. SECURITY: Mandatory passcode
+monitoringPasscode: "admin"
+
+# 4. INGRESS: Path-Based Routing (No Domain Needed)
+ingress:
+  enabled: true
+  ingressClassName: alb
+  hosts:
+    - name: ""  # <--- Leave empty so it accepts ANY domain (including AWS DNS)
+      path: /sonarqube # <--- Matches the context path above
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    # Group with your existing ALB
+    alb.ingress.kubernetes.io/group.name: shared-prod-alb
+    # Order: Priority 50
+    alb.ingress.kubernetes.io/group.order: "50"
+    # Health check must also use the new path!
+    alb.ingress.kubernetes.io/healthcheck-path: /sonarqube/api/system/status
+    alb.ingress.kubernetes.io/success-codes: "200"
+
+# 5. PERSISTENCE
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# 6. DATABASE
+postgresql:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+
+# 7. RESOURCES
+resources:
+  requests:
+    memory: 2Gi
+    cpu: 400m
+  limits:
+    memory: 4Gi
+    cpu: 2000m

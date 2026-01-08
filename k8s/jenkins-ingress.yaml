@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: jenkins   # <--- Lives in jenkins namespace
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # Same Group Name = Same Load Balancer
+    alb.ingress.kubernetes.io/group.name: "shared-prod-alb" 
+    alb.ingress.kubernetes.io/group.order: "1"
+    # Health check for Jenkins specifically
+    alb.ingress.kubernetes.io/healthcheck-path: /jenkins/login
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /jenkins
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080

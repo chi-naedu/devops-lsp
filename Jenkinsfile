@@ -89,6 +89,28 @@ pipeline {
                     sh "kubectl rollout restart deployment/frontend"
                 }
             }
+        } 
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    withSonarQubeEnv('sonarqube-server') {
+                        sh """
+                        /var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarQubeScanner/bin/sonar-scanner \
+                        -Dsonar.projectKey=linksnap-backend \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000/sonarqube \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                        """
+                    }
+                }
+            }
         }
-    }
+        stage("Quality Gate") {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+    }   
 }
