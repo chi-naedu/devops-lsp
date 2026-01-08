@@ -2,6 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend  # This matches the Ingress rule for path "/"
+  annotations:
+    # Specific check for the API
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/success-codes: "200"
 spec:
   type: ClusterIP
   selector:

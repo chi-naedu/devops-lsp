@@ -37,7 +37,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>LinkSnap</h1>
-        <p>The DevOps URL Shortener</p>
+        <p>The Robust URL Shortener</p>
         
         <form onSubmit={handleSubmit}>
           <input
