@@ -4,6 +4,12 @@
 # This requires a restart to take effect.
 sonarProperties:
   sonar.web.context: /sonarqube
+  # 1. Web Server (The UI) - Lowered to 768m
+  sonar.web.javaOpts: "-Xmx768m -Xms256m"
+  # 2. Compute Engine (The Background Worker)
+  sonar.ce.javaOpts: "-Xmx256m -Xms128m"
+  # 3. Elasticsearch (The Search Database) - CRITICAL to limit this!
+  sonar.search.javaOpts: "-Xmx512m -Xms512m"
 
 # 2. FIX: Enable Community Build
 community:
@@ -51,11 +57,43 @@ postgresql:
       memory: 1Gi
       cpu: 1000m
 
+initSysctl:
+  enabled: true
+  vmMaxMapCount: 524288
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
+
 # 7. RESOURCES
 resources:
   requests:
-    memory: 2Gi
+    memory: 1.5Gi
     cpu: 400m
   limits:
-    memory: 4Gi
-    cpu: 2000m
+    memory: 2Gi
+    cpu: 1000m
+
+# This allows ~10 minutes for startup
+startupProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  failureThreshold: 60
+  timeoutSeconds: 5
+
+# 2. Once running, don't kill it if it hiccups
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 6
+  timeoutSeconds: 5
+
+# 3. Ensure Readiness is also patient
+readinessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 6
+  timeoutSeconds: 5

@@ -2,13 +2,23 @@ pipeline {
     agent {
         kubernetes {
             serviceAccount 'jenkins'
-            // This YAML defines the "Build Agent" that spins up just for this job
             yaml '''
             apiVersion: v1
             kind: Pod
+            metadata:
+              labels:
+                app: jenkins-agent
             spec:
               containers:
-              # 1. Container to build Docker Images (using Kaniko, the K8s standard)
+              # 1. THE AGENT ITSELF (Crucial to limit this!)
+              - name: jnlp
+                image: jenkins/inbound-agent:3148.v532a_7e715ee3-1
+                resources:
+                  requests:
+                    memory: "128Mi"  # <--- Lowered to fit in your cluster
+                    cpu: "100m"
+
+              # 2. BUILDER (Kaniko)
               - name: kaniko
                 image: gcr.io/kaniko-project/executor:v1.14.0-debug
                 command:
@@ -17,13 +27,34 @@ pipeline {
                 volumeMounts:
                   - name: docker-config
                     mountPath: /kaniko/.docker
-              # 2. Container to run Kubectl commands
+                resources:
+                  requests:
+                    memory: "256Mi"  # <--- Lowered significantly
+                    cpu: "250m"
+
+              # 3. DEPLOYER (Kubectl)
               - name: kubectl
-                # This image is built for CI/CD: runs as root, has sh/bash/helm/kubectl
                 image: dtzar/helm-kubectl:latest
                 command:
                 - cat
                 tty: true
+                resources:
+                  requests:
+                    memory: "64Mi"   # <--- Very tiny footprint
+                    cpu: "50m"
+
+              # 4. QUALITY SCANNER (New!)
+              # Use a container for this so we don't worry about install paths
+              - name: sonar
+                image: sonarsource/sonar-scanner-cli:latest
+                command:
+                - cat
+                tty: true
+                resources:
+                  requests:
+                    memory: "128Mi"
+                    cpu: "100m"
+
               volumes:
                 - name: docker-config
                   emptyDir: {}
@@ -43,15 +74,37 @@ pipeline {
                 checkout scm
             }
         }
-        
-        // Note: For simplicity in this K8s migration, we are skipping the 
-        // Python/Node install stages. Kaniko handles the build directly from the Dockerfile.
 
+        // MOVED UP: Fail fast if code quality is bad!
+        stage('SonarQube Analysis') {
+            steps {
+                container('sonar') {
+                    withSonarQubeEnv('sonarqube-server') {
+                        // The scanner is already in the path in this image!
+                        sh """
+                        sonar-scanner \
+                        -Dsonar.projectKey=linksnap-backend \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000/sonarqube \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                        """
+                    }
+                }
+            }
+        }
+
+        stage("Quality Gate") {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
         stage('Build & Push Images') {
             steps {
                 container('kaniko') {
                     // Create a config.json for Kaniko to authenticate with ECR
-                    // This uses the Node's IAM Role automatically!
                     sh '''
                         echo "{\\"credsStore\\":\\"ecr-login\\"}" > /kaniko/.docker/config.json
                     '''
@@ -76,41 +129,17 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 container('kubectl') {
-                    // No login needed! It uses the Service Account.
-                    
                     // Apply Manifests
                     sh "kubectl apply -f k8s/backend-deployment.yaml"
                     sh "kubectl apply -f k8s/backend-service.yaml"
                     sh "kubectl apply -f k8s/frontend-deployment.yaml"
                     sh "kubectl apply -f k8s/frontend-service.yaml"
                     sh "kubectl apply -f k8s/ingress.yaml"
-                    // Force Restart
+                    // Force Restart to pick up new images
                     sh "kubectl rollout restart deployment/backend"
                     sh "kubectl rollout restart deployment/frontend"
                 }
             }
         } 
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    withSonarQubeEnv('sonarqube-server') {
-                        sh """
-                        /var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarQubeScanner/bin/sonar-scanner \
-                        -Dsonar.projectKey=linksnap-backend \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000/sonarqube \
-                        -Dsonar.login=$SONAR_AUTH_TOKEN
-                        """
-                    }
-                }
-            }
-        }
-        stage("Quality Gate") {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
     }   
 }
