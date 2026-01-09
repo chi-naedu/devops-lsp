@@ -88,12 +88,12 @@ startupProbe:
 livenessProbe:
   initialDelaySeconds: 60
   periodSeconds: 30
-  failureThreshold: 6
-  timeoutSeconds: 5
+  failureThreshold: 10
+  timeoutSeconds: 10
 
 # 3. Ensure Readiness is also patient
 readinessProbe:
   initialDelaySeconds: 60
   periodSeconds: 30
-  failureThreshold: 6
-  timeoutSeconds: 5
+  failureThreshold: 10
+  timeoutSeconds: 10

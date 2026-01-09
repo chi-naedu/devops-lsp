@@ -2,24 +2,25 @@ controller:
   image:
     repository: "jenkins/jenkins"
     tag: "lts"
+
+  jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080/jenkins/"
+  jenkinsUriPrefix: "/jenkins" 
   
-  # Resources (Optimized for your t3.medium nodes)
   resources:
     requests:
-      cpu: "500m"
-      memory: "1024Mi"
+      cpu: "1000m"      
+      memory: "2048Mi"  
     limits:
-      cpu: "1500m"    # Lowered slightly to be safer on t3.medium
-      memory: "3072Mi" # Lowered to leave room for your App
+      cpu: "2000m"      
+      memory: "4096Mi"  
       
-  # Java Options
-  javaOpts: "-Xms1024m -Xmx2048m"
+  # Java Options 
+  javaOpts: "-Xms2048m -Xmx3072m"
 
 serviceAccount:
   create: true
   name: jenkins
 
-# This ensures that if the Pod crashes, the 8GB drive is re-attached to the new Pod.
 persistence:
   enabled: true
   storageClass: "gp2"
