@@ -28,7 +28,7 @@ module "eks" {
     main_nodes = {
       # t3.medium is the "sweet spot" for k8s (2 vCPU, 4GB RAM).
       # t3.micro is too small (system pods will crash).
-      instance_types = ["t3.medium"]
+      instance_types = ["t3.large"]
       
       min_size     = 2
       max_size     = 3
