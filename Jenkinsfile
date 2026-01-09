@@ -134,7 +134,7 @@ pipeline {
                     sh "kubectl apply -f k8s/backend-service.yaml"
                     sh "kubectl apply -f k8s/frontend-deployment.yaml"
                     sh "kubectl apply -f k8s/frontend-service.yaml"
-                    sh "kubectl apply -f k8s/ingress.yaml"
+                    sh "kubectl apply -f k8s/linksnap-ingress.yaml"
                     // Force Restart to pick up new images
                     sh "kubectl rollout restart deployment/backend"
                     sh "kubectl rollout restart deployment/frontend"
