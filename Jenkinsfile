@@ -12,10 +12,10 @@ pipeline {
               containers:
               # 1. THE AGENT ITSELF (Crucial to limit this!)
               - name: jnlp
-                image: jenkins/inbound-agent:3148.v532a_7e715ee3-1
+                image: jenkins/inbound-agent:latest-jdk17
                 resources:
                   requests:
-                    memory: "128Mi"  # <--- Lowered to fit in your cluster
+                    memory: "128Mi" 
                     cpu: "100m"
 
               # 2. BUILDER (Kaniko)
