@@ -113,33 +113,40 @@ pipeline {
                     sh """
                         /kaniko/executor --context `pwd`/backend \
                         --dockerfile `pwd`/backend/Dockerfile \
-                        --destination ${ECR_REGISTRY}/linksnap-backend:latest
+                        --destination ${ECR_REGISTRY}/linksnap-backend:v${BUILD_NUMBER}
                     """
 
                     // Build Frontend
                     sh """
                         /kaniko/executor --context `pwd`/frontend \
                         --dockerfile `pwd`/frontend/Dockerfile \
-                        --destination ${ECR_REGISTRY}/linksnap-frontend:latest
+                        --destination ${ECR_REGISTRY}/linksnap-frontend:v${BUILD_NUMBER}
                     """
                 }
             }
         }
 
-        stage('Deploy to EKS') {
+        stage('Update Manifest') {
             steps {
-                container('kubectl') {
-                    // Apply Manifests
-                    sh "kubectl apply -f k8s/backend-deployment.yaml"
-                    sh "kubectl apply -f k8s/backend-service.yaml"
-                    sh "kubectl apply -f k8s/frontend-deployment.yaml"
-                    sh "kubectl apply -f k8s/frontend-service.yaml"
-                    sh "kubectl apply -f k8s/linksnap-ingress.yaml"
-                    // Force Restart to pick up new images
-                    sh "kubectl rollout restart deployment/backend"
-                    sh "kubectl rollout restart deployment/frontend"
+                script {
+                    // 1. Configure Git (So Jenkins can commit)
+                    sh "git config user.email 'jenkins@linksnap.com'"
+                    sh "git config user.name 'Jenkins CI'"
+                    
+                    // 2. Update the Docker Image Tag in the YAML file
+                    // This replaces "linksnap-backend:v..." with the new BUILD_NUMBER
+                    // Adjust the filename (deployment.yaml) if yours is named differently
+                    sh "sed -i 's|linksnap-backend:v[0-9]*|linksnap-backend:v${BUILD_NUMBER}|g' k8s/backend-deployment.yaml"
+                    sh "sed -i 's|linksnap-frontend:v[0-9]*|linksnap-frontend:v${BUILD_NUMBER}|g' k8s/frontend-deployment.yaml"
+
+                    // 3. Commit and Push the change back to GitHub
+                    withCredentials([usernamePassword(credentialsId: 'github-login', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        sh "git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml"
+                        sh "git commit -m 'Update Docker image tag to v${BUILD_NUMBER}'"
+                        sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/chi-naedu/devops-lsp.git HEAD:main"
+                    }
                 }
             }
-        } 
+        }
     }   
 }

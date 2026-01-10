@@ -23,8 +23,12 @@ ingress:
   enabled: true
   ingressClassName: alb
   hosts:
-    - name: ""  # <--- Leave empty so it accepts ANY domain (including AWS DNS)
-      path: /sonarqube # <--- Matches the context path above
+    - name: ""  # Empty means "accept any domain" (AWS DNS)
+      paths:
+        - path: /sonarqube
+          pathType: Prefix
+        - path: /sonarqube/*
+          pathType: ImplementationSpecific
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
