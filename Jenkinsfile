@@ -142,7 +142,7 @@ pipeline {
                     // 3. Commit and Push the change back to GitHub
                     withCredentials([usernamePassword(credentialsId: 'github-login', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                         sh "git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml"
-                        sh "git commit -m 'Update Docker image tag to v${BUILD_NUMBER}'"
+                        sh "git commit -m 'Update Docker image tag to v${BUILD_NUMBER} [skip ci]'"
                         sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/chi-naedu/devops-lsp.git HEAD:main"
                     }
                 }
