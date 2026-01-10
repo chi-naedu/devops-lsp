@@ -17,7 +17,7 @@ spec:
       containers:
       - name: backend
         # Your actual Backend ECR URI
-        image: 484336990036.dkr.ecr.eu-west-2.amazonaws.com/linksnap-backend:v27
+        image: 484336990036.dkr.ecr.eu-west-2.amazonaws.com/linksnap-backend:v28
         ports:
         - containerPort: 5000  # Ensure this matches your backend's listening port (Python/Flask defaults to 5000)
         
