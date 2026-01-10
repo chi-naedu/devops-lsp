@@ -17,7 +17,7 @@ spec:
       containers:
       - name: frontend
         # Your ECR Image URI
-        image: 484336990036.dkr.ecr.eu-west-2.amazonaws.com/linksnap-frontend:v0
+        image: 484336990036.dkr.ecr.eu-west-2.amazonaws.com/linksnap-frontend:v26
         imagePullPolicy: Always
         ports:
         - containerPort: 80 # Nginx (inside container) listens on 80
